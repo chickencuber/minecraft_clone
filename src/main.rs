@@ -2,7 +2,17 @@ mod graphics;
 use graphics::*;
 
 fn main() {
-    Window::create(640, 320, "minecraft_clone", WindowMode::Windowed);
-    loop {}
+    let mut window = Window::create(640, 320, "minecraft_clone", WindowMode::Windowed);
+    window.set_update(update);
+    window.set_startup(start);
+    window.start();
+}
+
+fn update(window: &mut Window) {
+
+}
+
+fn start(window: &mut Window) {
+
 }
 
