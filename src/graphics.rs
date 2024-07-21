@@ -1,6 +1,5 @@
-
 use glfw::{Context, Glfw, PWindow, GlfwReceiver};
-
+use std::collections::HashMap;
 pub use glfw::{WindowMode, WindowEvent as Event, Key, Action};
 
 trait Unwrap<T, B> {
@@ -17,6 +16,140 @@ impl Unwrap<u32, u32> for Option<(u32, u32)> {
     }
 }
 
+pub struct Shaders {
+    vertex_shader_code: Option<String>,
+    fragment_shader_code: Option<String>,
+    geometry_shader_code: Option<String>,
+    tess_control_shader_code: Option<String>,
+    tess_eval_shader_code: Option<String>,
+    compute_shader_code: Option<String>,
+    program: u32,
+}
+
+impl Shaders {
+    pub fn new() -> Self {
+        Self {
+            vertex_shader_code: None,
+            fragment_shader_code: None,
+            geometry_shader_code: None,
+            tess_control_shader_code: None,
+            tess_eval_shader_code: None,
+            compute_shader_code: None,
+            program: 0,
+        }
+    }
+
+    pub fn set_vertex_shader(&mut self, code: &str) {
+        self.vertex_shader_code = Some(code.to_string());
+    }
+
+    pub fn set_fragment_shader(&mut self, code: &str) {
+        self.fragment_shader_code = Some(code.to_string());
+    }
+
+    pub fn set_geometry_shader(&mut self, code: &str) {
+        self.geometry_shader_code = Some(code.to_string());
+    }
+
+    pub fn set_tess_control_shader(&mut self, code: &str) {
+        self.tess_control_shader_code = Some(code.to_string());
+    }
+
+    pub fn set_tess_eval_shader(&mut self, code: &str) {
+        self.tess_eval_shader_code = Some(code.to_string());
+    }
+
+    pub fn set_compute_shader(&mut self, code: &str) {
+        self.compute_shader_code = Some(code.to_string());
+    }
+
+    pub fn compile_shaders(&mut self) {
+        unsafe {
+            let mut shaders = vec![];
+
+            if let Some(ref code) = self.vertex_shader_code {
+                shaders.push(self.compile_shader(code, gl::VERTEX_SHADER));
+            }
+            if let Some(ref code) = self.fragment_shader_code {
+                shaders.push(self.compile_shader(code, gl::FRAGMENT_SHADER));
+            }
+            if let Some(ref code) = self.geometry_shader_code {
+                shaders.push(self.compile_shader(code, gl::GEOMETRY_SHADER));
+            }
+            if let Some(ref code) = self.tess_control_shader_code {
+                shaders.push(self.compile_shader(code, gl::TESS_CONTROL_SHADER));
+            }
+            if let Some(ref code) = self.tess_eval_shader_code {
+                shaders.push(self.compile_shader(code, gl::TESS_EVALUATION_SHADER));
+            }
+            if let Some(ref code) = self.compute_shader_code {
+                shaders.push(self.compile_shader(code, gl::COMPUTE_SHADER));
+            }
+
+            self.program = gl::CreateProgram();
+
+            for shader in &shaders {
+                gl::AttachShader(self.program, *shader);
+            }
+
+            gl::LinkProgram(self.program);
+
+            let mut success = gl::FALSE as i32;
+            gl::GetProgramiv(self.program, gl::LINK_STATUS, &mut success);
+            if success == gl::FALSE as i32 {
+                let mut len = 0;
+                gl::GetProgramiv(self.program, gl::INFO_LOG_LENGTH, &mut len);
+                let mut buf = Vec::with_capacity(len as usize);
+                buf.set_len((len - 1) as usize);
+                gl::GetProgramInfoLog(
+                    self.program,
+                    len,
+                    std::ptr::null_mut(),
+                    buf.as_mut_ptr() as *mut gl::types::GLchar,
+                );
+                eprintln!("Program link error: {:?}", String::from_utf8(buf).unwrap());
+            }
+
+            for shader in shaders {
+                gl::DeleteShader(shader);
+            }
+        }
+    }
+
+    fn compile_shader(&self, source: &str, shader_type: u32) -> u32 {
+        unsafe {
+            let shader = gl::CreateShader(shader_type);
+            let c_source = std::ffi::CString::new(source).unwrap();
+            gl::ShaderSource(shader, 1, &c_source.as_ptr(), std::ptr::null());
+            gl::CompileShader(shader);
+
+            let mut success = gl::FALSE as i32;
+            gl::GetShaderiv(shader, gl::COMPILE_STATUS, &mut success);
+            if success == gl::FALSE as i32 {
+                let mut len = 0;
+                gl::GetShaderiv(shader, gl::INFO_LOG_LENGTH, &mut len);
+                let mut buf = Vec::with_capacity(len as usize);
+                buf.set_len((len - 1) as usize);
+                gl::GetShaderInfoLog(
+                    shader,
+                    len,
+                    std::ptr::null_mut(),
+                    buf.as_mut_ptr() as *mut gl::types::GLchar,
+                );
+                eprintln!("Shader compile error: {:?}", String::from_utf8(buf).unwrap());
+            }
+
+            shader
+        }
+    }
+
+    pub fn use_program(&self) {
+        unsafe {
+            gl::UseProgram(self.program);
+        }
+    }
+}
+
 pub struct Window {
     pub window_handler: Box<PWindow>,
     pub glfw: Box<Glfw>,
@@ -26,6 +159,7 @@ pub struct Window {
     pub min_size: Option<(u32, u32)>,
     pub max_size: Option<(u32, u32)>,
     on_event: fn(&mut Self, Event) -> (),
+    pub shaders: Shaders,
 }
 
 impl Window {
@@ -60,6 +194,7 @@ impl Window {
             on_event: |_window: &mut Self, _event: Event| {},
             min_size: None,
             max_size: None,
+            shaders: Shaders::new(),
         }
     }
     pub fn set_min_size(&mut self, width: u32, height: u32) {
