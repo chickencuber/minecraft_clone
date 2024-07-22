@@ -1,6 +1,29 @@
 use glfw::{Context, Glfw, PWindow, GlfwReceiver};
-use std::collections::HashMap;
 pub use glfw::{WindowMode, WindowEvent as Event, Key, Action};
+
+pub mod files {
+    use std::{fs, io::prelude::Read, env::current_exe};
+
+    fn file_name(name: &str, dev: &bool) -> Result<String, std::io::Error> {
+        let mut exe = current_exe()?; 
+        exe.pop();
+        if *dev {
+            exe.pop();
+            exe.pop();
+            exe.push("src");
+        }
+        exe.push(name);
+        return Ok(exe.to_str().unwrap().to_string());
+    }
+
+    pub fn load_file(filename: &str, dev: &bool) -> Result<String, std::io::Error> {
+        let mut file = fs::File::open(file_name(filename, dev)?)?;
+        let mut contents = String::new();
+        file.read_to_string(&mut contents)?;
+        Ok(contents)
+    }
+}
+
 
 trait Unwrap<T, B> {
  fn unwrap_to_option(&self) -> (Option<T>, Option<B>);
@@ -150,7 +173,7 @@ impl Shaders {
     }
 }
 
-pub struct Window {
+pub struct Window<Data> {
     pub window_handler: Box<PWindow>,
     pub glfw: Box<Glfw>,
     pub event_handler: Box<GlfwReceiver<(f64, Event)>>,
@@ -159,11 +182,16 @@ pub struct Window {
     pub min_size: Option<(u32, u32)>,
     pub max_size: Option<(u32, u32)>,
     on_event: fn(&mut Self, Event) -> (),
+    render: fn(&mut Self) -> (),
     pub shaders: Shaders,
+    pub data: Data,
+    pub fps: f64,
+    pub deltatime: f64,
+    pub frame_count: u64,
 }
 
-impl Window {
-    pub fn create(width: u16, height: u16, name: &str, mode: WindowMode) -> Self {
+impl<Data> Window<Data> {
+    pub fn create (width: u16, height: u16, name: &str, mode: WindowMode, data: Data) -> Self {
         let mut glfw = glfw::init(glfw::fail_on_errors).unwrap();
 
         glfw.window_hint(glfw::WindowHint::ContextVersion(3, 3));
@@ -189,12 +217,17 @@ impl Window {
             window_handler: Box::new(window),
             glfw: Box::new(glfw),
             event_handler: Box::new(events),
-            startup: |_window: &mut Self| {},
-            update: |_window: &mut Self| {},
-            on_event: |_window: &mut Self, _event: Event| {},
+            startup: |_window| {},
+            update: |_window| {},
+            on_event: |_window, _event| {},
+            render: |_window| {},
             min_size: None,
             max_size: None,
             shaders: Shaders::new(),
+            data,
+            fps: 0.0,
+            deltatime: 0.0,
+            frame_count: 0,
         }
     }
     pub fn set_min_size(&mut self, width: u32, height: u32) {
@@ -221,8 +254,11 @@ impl Window {
         let (w, h) =  self.window_handler.get_framebuffer_size();
         return (w.try_into().unwrap_or(0), h.try_into().unwrap_or(0));
     }
-    pub fn set_on_event(&mut self, func: fn(&mut Self, event: Event) -> ()) {
+    pub fn set_on_event(&mut self, func: fn(&mut Self, Event) -> ()) {
         self.on_event = func;
+    }
+    pub fn set_render(&mut self, func: fn(&mut Self) -> ()) {
+        self.render = func;
     }
     pub fn set_startup(&mut self, func: fn(&mut Self) -> ()) {
         self.startup = func;
@@ -232,6 +268,7 @@ impl Window {
     }
     pub fn start(&mut self) {
         (self.startup)(self);
+
         while !self.window_handler.should_close() {
             // Poll events
             self.glfw.poll_events();
@@ -244,12 +281,14 @@ impl Window {
                 (self.on_event)(self, event);
             }
 
+            (self.update)(self);
+
             // Render loop
             unsafe {
                 gl::Clear(gl::COLOR_BUFFER_BIT);
             }
 
-            (self.update)(self);
+            (self.render)(self);
 
             self.window_handler.swap_buffers();
         }
