@@ -1,1 +1,1 @@
-this is my neovim config
+this is a minecraft clone
