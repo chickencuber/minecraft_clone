@@ -1,5 +1,6 @@
 use glfw::{Context, Glfw, PWindow, GlfwReceiver};
 pub use glfw::{WindowMode, WindowEvent as Event, Key, Action};
+use std::{time::{Instant, Duration}, thread::sleep};
 
 pub mod files {
     use std::{fs, io::prelude::Read, env::current_exe};
@@ -188,6 +189,7 @@ pub struct Window<Data> {
     pub fps: f64,
     pub deltatime: f64,
     pub frame_count: u64,
+    pub max_fps: Option<f64>,
 }
 
 impl<Data> Window<Data> {
@@ -228,6 +230,7 @@ impl<Data> Window<Data> {
             fps: 0.0,
             deltatime: 0.0,
             frame_count: 0,
+            max_fps: None,
         }
     }
     pub fn set_min_size(&mut self, width: u32, height: u32) {
@@ -254,6 +257,9 @@ impl<Data> Window<Data> {
         let (w, h) =  self.window_handler.get_framebuffer_size();
         return (w.try_into().unwrap_or(0), h.try_into().unwrap_or(0));
     }
+    pub fn set_max_fps(&mut self, fps: f64) {
+        self.max_fps = Some(fps);
+    }
     pub fn set_on_event(&mut self, func: fn(&mut Self, Event) -> ()) {
         self.on_event = func;
     }
@@ -268,6 +274,8 @@ impl<Data> Window<Data> {
     }
     pub fn start(&mut self) {
         (self.startup)(self);
+        
+        let mut last_time = Instant::now();
 
         while !self.window_handler.should_close() {
             // Poll events
@@ -291,6 +299,21 @@ impl<Data> Window<Data> {
             (self.render)(self);
 
             self.window_handler.swap_buffers();
+
+            if let Some(target_fps) = self.max_fps {
+                let target_frame_duration = Duration::from_secs_f64(1.0 / target_fps);
+                let frame_time = Instant::now().duration_since(last_time);
+
+                if frame_time < target_frame_duration {
+                    sleep(target_frame_duration - frame_time);
+                }
+            }
+
+            self.frame_count = self.frame_count.wrapping_add(1);
+            let current = Instant::now(); 
+            self.deltatime = current.duration_since(last_time).as_secs_f64();
+            last_time = current;
+            self.fps = 1.0 / self.deltatime;
         }
     }
 }

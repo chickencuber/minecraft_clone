@@ -12,6 +12,7 @@ fn main() {
 
     });
     window.set_min_size(640, 320);
+    window.set_max_fps(60.0);
     window.set_update(update);
     window.set_startup(start); 
     window.set_render(render);
@@ -33,7 +34,7 @@ fn start(window: &mut Window<GameData>) {
 }
 
 fn update(window: &mut Window<GameData>) {
-
+    println!("{}", window.fps)
 }
 
 fn render(window: &mut Window<GameData>) {
