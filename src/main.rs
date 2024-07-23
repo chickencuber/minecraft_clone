@@ -1,15 +1,15 @@
 mod graphics;
-use graphics::*;
+use graphics::{*, draw::*};
 
 const DEV: bool = true;
 
 struct GameData {
-
+    
 }
 
 fn main() {
     let mut window = Window::create(640, 320, "minecraft_clone", WindowMode::Windowed, GameData {
-
+       
     });
     window.set_min_size(640, 320);
     window.set_max_fps(60.0);
@@ -21,7 +21,7 @@ fn main() {
     window.shaders.set_vertex_shader(files::load_file("./shaders/vertex_shader.glsl", &DEV).unwrap().as_str());
     window.shaders.set_fragment_shader(files::load_file("./shaders/fragment_shader.glsl", &DEV).unwrap().as_str());
     window.shaders.compile_shaders();
-
+    
     window.start();
 }
 
@@ -30,14 +30,28 @@ fn on_event(window: &mut Window<GameData>, event: Event) {
 }
 
 fn start(window: &mut Window<GameData>) {
-    
+   
 }
 
 fn update(window: &mut Window<GameData>) {
-    println!("{}", window.fps)
+    // Update logic
 }
 
 fn render(window: &mut Window<GameData>) {
+    let triangles: Vec<Triangle> = create_square_triangles();
+    window.render_triangles(&triangles);
+}
 
+pub fn create_square_triangles() -> Vec<draw::Triangle> {
+    let half_side = 0.1; // Half the length of the side
+
+    let bl = draw::Vec3::new(-half_side, -half_side, 1.0); // Bottom-left
+    let br = draw::Vec3::new(half_side, -half_side, 1.0);  // Bottom-right
+    let tl = draw::Vec3::new(-half_side, half_side, 1.0);  // Top-left
+    let tr = draw::Vec3::new(half_side, half_side, 1.0);   // Top-right
+
+    let mut triangles = Vec::new();
+    draw::Triangle::square(&mut triangles, bl, br, tr, tl);
+    triangles
 }
 

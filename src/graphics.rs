@@ -2,6 +2,8 @@ use glfw::{Context, Glfw, PWindow, GlfwReceiver};
 pub use glfw::{WindowMode, WindowEvent as Event, Key, Action};
 use std::{time::{Instant, Duration}, thread::sleep};
 
+use nalgebra_glm as glm;
+
 pub mod files {
     use std::{fs, io::prelude::Read, env::current_exe};
 
@@ -25,15 +27,160 @@ pub mod files {
     }
 }
 
+pub mod draw {
+    use std::ops::{Neg, Add, AddAssign, Mul, MulAssign, Sub, SubAssign, Div, DivAssign, Rem, RemAssign};
+    use rand::Rng;
+    #[derive(PartialEq, Clone, Copy)]
+    pub struct Vec3 {
+        pub x: f32,
+        pub y: f32,
+        pub z: f32,
+    }
+
+    impl Vec3 {
+        pub fn new(x: f32, y: f32, z: f32) -> Self {
+            return Self {
+                x,
+                y,
+                z,
+            }
+        }
+        fn all(n: f32) -> Self {
+            return Self::new(n, n, n);
+        }
+        fn zero() -> Self {
+            return Self::all(0.0);
+        }
+        pub fn rand(min: f32, max: f32) -> Self {
+            let mut rng = rand::thread_rng();
+            Self {
+                x: rng.gen_range(min..max),
+                y: rng.gen_range(min..max),
+                z: rng.gen_range(min..max),
+            }
+        }        
+        pub fn set(&mut self, x: f32, y: f32, z: f32) {
+            self.x = x;
+            self.y = y;
+            self.z = z;
+        }
+        pub fn dist(&self, other: &Self) -> f32 {
+            let dx = self.x - other.x;
+            let dy = self.y - other.y;
+            let dz = self.z - other.z;
+            (dx * dx + dy * dy + dz * dz).sqrt()
+        }
+
+        // Compute the cross product of two vectors
+        pub fn cross(&self, other: &Self) -> Self {
+            Vec3 {
+                x: self.y * other.z - self.z * other.y,
+                y: self.z * other.x - self.x * other.z,
+                z: self.x * other.y - self.y * other.x,
+            }
+        }
+
+        // Compute the dot product of two vectors
+        pub fn dot(&self, other: &Self) -> f32 {
+            self.x * other.x + self.y * other.y + self.z * other.z
+        }
+        pub fn mag(&self) -> f32 {
+            return self.dist(&Self::new(0.0, 0.0, 0.0));
+        }
+        pub fn mag2(&self) -> f32 {
+            return self.x * self.x + self.y * self.y + self.z * self.z;
+        }
+        pub fn norm(&mut self) {
+            let mag = self.mag();
+            if mag == 0.0 {
+                return;
+            }
+            *self /= Self::all(mag);
+        }
+    }
+
+    impl Neg for Vec3 {
+        type Output = Self;
+        fn neg(self) -> Self::Output {
+            return Self::new(-self.x, -self.y, -self.z);
+        }
+    }
+
+    macro_rules! op {
+        ($name:ident, $fn_name:ident, $op:tt) => {
+            impl $name for Vec3 {
+                type Output = Self;
+                fn $fn_name(self, rhs: Self) -> Self::Output {
+                    return Self::new(self.x + rhs.x, self.y + rhs.y, self.z + rhs.z);
+                } 
+            }
+        };
+    }
+
+    macro_rules! assign {
+        ($name:ident, $fn_name:ident, $op:tt) => {
+            impl $name for Vec3 {
+                fn $fn_name(&mut self, rhs: Self) {
+                    self.x $op rhs.x;
+                    self.y $op rhs.y;
+                    self.z $op rhs.z;
+
+                } 
+            }
+
+        };
+    }
+
+    op!(Add, add, +);
+    assign!(AddAssign, add_assign, +=);
+    op!(Mul, mul, *);
+    assign!(MulAssign, mul_assign, *=);
+    op!(Sub, sub, -);
+    assign!(SubAssign, sub_assign, -=);
+    op!(Div, div, /);
+    assign!(DivAssign, div_assign, /=);
+    op!(Rem, rem, %);
+    assign!(RemAssign, rem_assign, %=);
+
+
+    pub struct Triangle {
+        pub p1: Vec3,
+        pub p2: Vec3,
+        pub p3: Vec3,
+    }
+
+    impl Triangle {
+        pub fn new(p1: Vec3, p2: Vec3, p3: Vec3) -> Self {
+            Self {
+                p1, p2, p3,
+            }
+        } 
+        pub fn square(vec: &mut Vec<Triangle>, tl: Vec3, tr: Vec3, br: Vec3, bl: Vec3) {
+            vec.push(Triangle::new(tl, tr, br));
+            vec.push(Triangle::new(tl, bl, br));
+        }
+        pub fn to_points(&self, vec: &mut Vec<f32>) {
+            vec.push(self.p1.x);
+            vec.push(self.p1.y);
+            vec.push(-self.p1.z);
+            vec.push(self.p2.x);
+            vec.push(self.p2.y);
+            vec.push(-self.p2.z);
+            vec.push(self.p3.x);
+            vec.push(self.p3.y);
+            vec.push(-self.p3.z);
+        }
+    }
+}
 
 trait Unwrap<T, B> {
- fn unwrap_to_option(&self) -> (Option<T>, Option<B>);
+    fn unwrap_to_option(&self) -> (Option<T>, Option<B>);
 }
 
 impl Unwrap<u32, u32> for Option<(u32, u32)> {
     fn unwrap_to_option(&self) -> (Option<u32>, Option<u32>) {
         if let Some(t) = self {
-           return (Some(t.0), Some(t.1)); 
+            return (Some(t.0), Some(t.1)); 
         } else {
             return (None, None);
         }
@@ -130,7 +277,7 @@ impl Shaders {
                     len,
                     std::ptr::null_mut(),
                     buf.as_mut_ptr() as *mut gl::types::GLchar,
-                );
+                    );
                 eprintln!("Program link error: {:?}", String::from_utf8(buf).unwrap());
             }
 
@@ -159,7 +306,7 @@ impl Shaders {
                     len,
                     std::ptr::null_mut(),
                     buf.as_mut_ptr() as *mut gl::types::GLchar,
-                );
+                    );
                 eprintln!("Shader compile error: {:?}", String::from_utf8(buf).unwrap());
             }
 
@@ -170,6 +317,16 @@ impl Shaders {
     pub fn use_program(&self) {
         unsafe {
             gl::UseProgram(self.program);
+        }
+    }
+    pub fn set_uniform_matrix(&self, name: &str, matrix: &glm::Mat4) {
+        unsafe {
+            let location = gl::GetUniformLocation(self.program, std::ffi::CString::new(name).unwrap().as_ptr() as *const i8);
+            if location != -1 {
+                gl::UniformMatrix4fv(location, 1, gl::FALSE, matrix.as_ptr());
+            } else {
+                eprintln!("Uniform {} not found in shader program", name);
+            }
         }
     }
 }
@@ -204,11 +361,13 @@ impl<Data> Window<Data> {
         glfw.window_hint(glfw::WindowHint::Samples(Some(4))); 
 
         let (mut window, events) = glfw.create_window(width.into(), height.into(), name, mode).expect("Failed to create GLFW window.");
-        let (screen_width, screen_height) = window.get_framebuffer_size();
 
         window.make_current();
+        window.set_framebuffer_size_polling(true);
         window.set_key_polling(true);
         gl::load_with(|s| window.get_proc_address(s) as *const _);
+
+        let (screen_width, screen_height) = window.get_framebuffer_size();
 
         unsafe {
             gl::Viewport(0, 0, screen_width, screen_height);
@@ -234,9 +393,9 @@ impl<Data> Window<Data> {
         }
     }
     pub fn set_min_size(&mut self, width: u32, height: u32) {
-       self.min_size = Some((width, height));
-       let (w, h) = self.max_size.unwrap_to_option();
-       self.window_handler.set_size_limits(Some(width), Some(height), w, h);
+        self.min_size = Some((width, height));
+        let (w, h) = self.max_size.unwrap_to_option();
+        self.window_handler.set_size_limits(Some(width), Some(height), w, h);
     }
     pub fn set_max_size(&mut self, width: u32, height: u32) {
         self.max_size = Some((width, height));
@@ -274,7 +433,7 @@ impl<Data> Window<Data> {
     }
     pub fn start(&mut self) {
         (self.startup)(self);
-        
+
         let mut last_time = Instant::now();
 
         while !self.window_handler.should_close() {
@@ -286,6 +445,9 @@ impl<Data> Window<Data> {
 
             // Handle events with immutable access to the event handler
             for (_, event) in events {
+                if let Event::FramebufferSize(w, h) = event {
+                    unsafe { gl::Viewport(0, 0, w, h) }
+                }
                 (self.on_event)(self, event);
             }
 
@@ -314,6 +476,59 @@ impl<Data> Window<Data> {
             self.deltatime = current.duration_since(last_time).as_secs_f64();
             last_time = current;
             self.fps = 1.0 / self.deltatime;
+        }
+    }
+    pub fn render_triangles(&self, vec: &Vec<draw::Triangle>) {
+        let mut new_vec: Vec<f32> = Vec::new();
+        for tri in vec {
+            tri.to_points(&mut new_vec); 
+        }
+        unsafe {
+            let (width, height) = self.get_resolution();
+            let aspect_ratio = width as f32 / height as f32;
+
+            // Create perspective matrix
+            let fov_y = 45.0_f32.to_radians();
+            let near = 0.1;
+            let far = 100.0;
+            let projection_matrix = glm::perspective(aspect_ratio, fov_y, near, far);
+
+            self.shaders.use_program();
+            self.shaders.set_uniform_matrix("u_ProjectionMatrix", &projection_matrix);
+
+
+            // Vertex Array Object (VAO) and Vertex Buffer Object (VBO) setup
+            let mut vao: u32 = 0;
+            let mut vbo: u32 = 0; 
+
+            gl::GenVertexArrays(1, &mut vao);
+            gl::GenBuffers(1, &mut vbo);
+
+            gl::BindVertexArray(vao);
+
+            gl::BindBuffer(gl::ARRAY_BUFFER, vbo);
+            gl::BufferData(
+                gl::ARRAY_BUFFER,
+                (new_vec.len() * std::mem::size_of::<f32>()) as isize,
+                new_vec.as_ptr() as *const _,
+                gl::STATIC_DRAW,
+                );
+
+            gl::VertexAttribPointer(0, 3, gl::FLOAT, gl::FALSE, 3 * std::mem::size_of::<f32>() as i32, std::ptr::null());
+            gl::EnableVertexAttribArray(0);
+
+            gl::BindBuffer(gl::ARRAY_BUFFER, 0);
+
+            gl::BindVertexArray(vao);
+
+            // Draw the square using two triangles
+            gl::DrawArrays(gl::TRIANGLES, 0, 6);
+
+            gl::BindVertexArray(0);
+
+            // Clean up
+            gl::DeleteVertexArrays(1, &mut vao);
+            gl::DeleteBuffers(1, &mut vbo);
         }
     }
 }
