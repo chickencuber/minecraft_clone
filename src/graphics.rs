@@ -1,11 +1,14 @@
 use glfw::{Context, Glfw, PWindow, GlfwReceiver};
 pub use glfw::{WindowMode, WindowEvent as Event, Key, Action};
-use std::{time::{Instant, Duration}, thread::sleep};
+use image::{DynamicImage, GenericImageView};
+use std::{collections::HashMap, thread::sleep, time::{Duration, Instant}};
 
 use nalgebra_glm as glm;
 
 pub mod files {
     use std::{fs, io::prelude::Read, env::current_exe};
+
+    use image::DynamicImage;
 
     fn file_name(name: &str, dev: &bool) -> Result<String, std::io::Error> {
         let mut exe = current_exe()?; 
@@ -25,11 +28,20 @@ pub mod files {
         file.read_to_string(&mut contents)?;
         Ok(contents)
     }
+
+    pub fn load_texture(filename: &str, dev: &bool) -> Result<DynamicImage, std::io::Error> {
+        let path = file_name(filename, dev)?;
+        let img = image::open(path).expect("Failed to load texture");
+
+        return Ok(img);
+    }
 }
 
 pub mod draw {
     use std::ops::{Neg, Add, AddAssign, Mul, MulAssign, Sub, SubAssign, Div, DivAssign, Rem, RemAssign};
     use rand::Rng;
+
+    use crate::{TextureLocation, TextureMapping};
     #[derive(PartialEq, Clone, Copy)]
     pub struct Vec3 {
         pub x: f32,
@@ -147,28 +159,38 @@ pub mod draw {
         pub p1: Vec3,
         pub p2: Vec3,
         pub p3: Vec3,
+
+        pub t1: (f32, f32),
+        pub t2: (f32, f32),
+        pub t3: (f32, f32),
     }
 
     impl Triangle {
-        pub fn new(p1: Vec3, p2: Vec3, p3: Vec3) -> Self {
+        pub fn new(p1: Vec3, p2: Vec3, p3: Vec3, texture_id: &TextureLocation, t1: TextureMapping, t2: TextureMapping, t3: TextureMapping) -> Self {
             Self {
-                p1, p2, p3,
+                p1, p2, p3, t1: t1.get(*texture_id), t2: t2.get(*texture_id), t3: t3.get(*texture_id),
             }
         } 
-        pub fn square(vec: &mut Vec<Triangle>, tl: Vec3, tr: Vec3, br: Vec3, bl: Vec3) {
-            vec.push(Triangle::new(tl, tr, br));
-            vec.push(Triangle::new(tl, bl, br));
+        pub fn square(vec: &mut Vec<Triangle>, tl: Vec3, tr: Vec3, br: Vec3, bl: Vec3, texture_id: &TextureLocation) {
+            vec.push(Triangle::new(tl, tr, br, texture_id, TextureMapping::TopLeft, TextureMapping::TopRight, TextureMapping::BottomRight));
+            vec.push(Triangle::new(tl, bl, br, texture_id, TextureMapping::TopLeft, TextureMapping::BottomLeft, TextureMapping::BottomRight));
         }
         pub fn to_points(&self, vec: &mut Vec<f32>) {
             vec.push(self.p1.x);
             vec.push(self.p1.y);
             vec.push(-self.p1.z);
+            vec.push(self.t1.0);
+            vec.push(self.t1.1);
             vec.push(self.p2.x);
             vec.push(self.p2.y);
             vec.push(-self.p2.z);
+            vec.push(self.t2.0);
+            vec.push(self.t2.1);
             vec.push(self.p3.x);
             vec.push(self.p3.y);
             vec.push(-self.p3.z);
+            vec.push(self.t3.0);
+            vec.push(self.t3.1);
         }
     }
 }
@@ -187,6 +209,32 @@ impl Unwrap<u32, u32> for Option<(u32, u32)> {
     }
 }
 
+#[derive(Clone, Copy)]
+pub struct TextureLocation {
+    tl: (f32, f32),
+    tr: (f32, f32),
+    bl: (f32, f32),
+    br: (f32, f32),
+}
+
+pub enum TextureMapping {
+    TopLeft,
+    TopRight,
+    BottomLeft,
+    BottomRight,
+}
+
+impl TextureMapping {
+    pub fn get(&self, location: TextureLocation) -> (f32, f32) {
+        match self {
+            Self::BottomLeft => location.bl,
+            Self::BottomRight => location.br,
+            Self::TopLeft => location.tl,
+            Self::TopRight => location.tr,
+        }
+    }
+}
+
 pub struct Shaders {
     vertex_shader_code: Option<String>,
     fragment_shader_code: Option<String>,
@@ -194,7 +242,10 @@ pub struct Shaders {
     tess_control_shader_code: Option<String>,
     tess_eval_shader_code: Option<String>,
     compute_shader_code: Option<String>,
-    program: u32,
+    pub program: u32,
+    pub textures: HashMap<String, TextureLocation>,
+    uncompiled_textures: HashMap<String, DynamicImage>,
+    pub texture_atlas: u32,
 }
 
 impl Shaders {
@@ -207,6 +258,9 @@ impl Shaders {
             tess_eval_shader_code: None,
             compute_shader_code: None,
             program: 0,
+            textures: HashMap::new(),
+            uncompiled_textures: HashMap::new(),
+            texture_atlas: 0,
         }
     }
 
@@ -328,6 +382,87 @@ impl Shaders {
                 eprintln!("Uniform {} not found in shader program", name);
             }
         }
+    }
+    pub fn reg_texture(&mut self, name: &str, img: DynamicImage) { 
+        self.uncompiled_textures.insert(name.to_string(), img);
+    }
+    pub fn build_atlas(&mut self) {
+        let mut img: image::RgbaImage; 
+        {
+            let mut width = 0;
+            let mut height = 0;
+            for (_, v) in self.uncompiled_textures.iter() {
+                let (w, h) = v.dimensions();
+                width += w;
+                if h > height {
+                    height = h;
+                }
+            } 
+            img = image::RgbaImage::new(width, height);
+
+            let mut x_offset = 0;
+
+            // Add each texture to the atlas
+            for (key, texture) in self.uncompiled_textures.iter() {
+                let (w, h) = texture.dimensions();
+
+                // Copy the texture data into the atlas image
+                let texture_data = texture.to_rgba8();
+                for y in 0..h {
+                    for x in 0..w {
+                        img.put_pixel(x + x_offset, y, *texture_data.get_pixel(x, y));
+                    }
+                }
+
+                // Calculate the texture coordinates in the atlas
+                let (atlas_width, atlas_height) = img.dimensions();
+                let texture_location = TextureLocation {
+                    bl: (x_offset as f32 / atlas_width as f32, 0.0),
+                    br: ((x_offset + w) as f32 / atlas_width as f32, 0.0),
+                    tl: (x_offset as f32 / atlas_width as f32, h as f32 / atlas_height as f32),
+                    tr: ((x_offset + w) as f32 / atlas_width as f32, h as f32 / atlas_height as f32),
+                };
+
+                // Store the texture coordinates
+                self.textures.insert(key.clone(), texture_location);
+
+                // Update x_offset for the next texture
+                x_offset += w;
+            }
+        }
+        let (width, height) = img.dimensions();
+        let data = img;
+
+        let mut texture: u32 = 0;
+        unsafe {
+            gl::GenTextures(1, &mut texture);
+            gl::BindTexture(gl::TEXTURE_2D, texture);
+
+            gl::Enable(gl::BLEND);
+            gl::BlendFunc(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
+
+
+            // Set texture parameters
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, gl::REPEAT as i32);
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, gl::REPEAT as i32);
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::LINEAR as i32);
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::LINEAR as i32);
+
+            // Upload texture data
+            gl::TexImage2D(
+                gl::TEXTURE_2D,
+                0,
+                gl::RGBA as i32,
+                width as i32,
+                height as i32,
+                0,
+                gl::RGBA,
+                gl::UNSIGNED_BYTE,
+                data.as_ptr() as *const std::ffi::c_void,
+                );
+            gl::GenerateMipmap(gl::TEXTURE_2D);
+        }
+        self.texture_atlas = texture;
     }
 }
 
@@ -493,9 +628,15 @@ impl<Data> Window<Data> {
             let far = 100.0;
             let projection_matrix = glm::perspective(aspect_ratio, fov_y, near, far);
 
+            gl::ActiveTexture(gl::TEXTURE0); // Activate texture unit 0
+            gl::BindTexture(gl::TEXTURE_2D, self.shaders.texture_atlas); // Bind the texture
+
             self.shaders.use_program();
             self.shaders.set_uniform_matrix("u_ProjectionMatrix", &projection_matrix);
 
+            // Set the texture uniform
+            let texture_uniform_location = gl::GetUniformLocation(self.shaders.program, "textureSampler\0".as_ptr() as *const i8);
+            gl::Uniform1i(texture_uniform_location, 0);
 
             // Vertex Array Object (VAO) and Vertex Buffer Object (VBO) setup
             let mut vao: u32 = 0;
@@ -514,22 +655,35 @@ impl<Data> Window<Data> {
                 gl::STATIC_DRAW,
                 );
 
-            gl::VertexAttribPointer(0, 3, gl::FLOAT, gl::FALSE, 3 * std::mem::size_of::<f32>() as i32, std::ptr::null());
+            // Set up position attribute
+            gl::VertexAttribPointer(0, 3, gl::FLOAT, gl::FALSE, 5 * std::mem::size_of::<f32>() as i32, std::ptr::null());
             gl::EnableVertexAttribArray(0);
 
+            // Set up texture coordinate attribute
+            gl::VertexAttribPointer(
+                1,
+                2,
+                gl::FLOAT,
+                gl::FALSE,
+                5 * std::mem::size_of::<f32>() as i32,
+                (3 * std::mem::size_of::<f32>()) as *const _,
+                );
+            gl::EnableVertexAttribArray(1);
+
             gl::BindBuffer(gl::ARRAY_BUFFER, 0);
-
-            gl::BindVertexArray(vao);
-
-            // Draw the square using two triangles
-            gl::DrawArrays(gl::TRIANGLES, 0, 6);
-
             gl::BindVertexArray(0);
 
+            // Draw the square using two triangles
+            gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT); // Clear buffers
+            self.shaders.use_program(); // Ensure shader program is used
+            gl::BindVertexArray(vao);
+            gl::DrawArrays(gl::TRIANGLES, 0, (new_vec.len() / 5) as i32);
+
             // Clean up
+            gl::BindVertexArray(0);
             gl::DeleteVertexArrays(1, &mut vao);
             gl::DeleteBuffers(1, &mut vbo);
-        }
+        }    
     }
 }
 

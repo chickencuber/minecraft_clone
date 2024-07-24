@@ -7,6 +7,18 @@ struct GameData {
     
 }
 
+enum Textures {
+    GrassBlockTop,
+}
+
+impl Textures {
+    pub fn get(&self) -> &str {
+        match self {
+            Self::GrassBlockTop => "grass-block-top",
+        }
+    }
+}
+
 fn main() {
     let mut window = Window::create(640, 320, "minecraft_clone", WindowMode::Windowed, GameData {
        
@@ -21,7 +33,10 @@ fn main() {
     window.shaders.set_vertex_shader(files::load_file("./shaders/vertex_shader.glsl", &DEV).unwrap().as_str());
     window.shaders.set_fragment_shader(files::load_file("./shaders/fragment_shader.glsl", &DEV).unwrap().as_str());
     window.shaders.compile_shaders();
-    
+   
+    window.shaders.reg_texture(Textures::GrassBlockTop.get(), files::load_texture("./textures/grass_block_top.png", &DEV).unwrap());
+    window.shaders.build_atlas();
+
     window.start();
 }
 
@@ -38,20 +53,20 @@ fn update(window: &mut Window<GameData>) {
 }
 
 fn render(window: &mut Window<GameData>) {
-    let triangles: Vec<Triangle> = create_square_triangles();
+    let triangles: Vec<Triangle> = create_square_triangles(*window.shaders.textures.get(Textures::GrassBlockTop.get()).unwrap());
     window.render_triangles(&triangles);
 }
 
-pub fn create_square_triangles() -> Vec<draw::Triangle> {
+pub fn create_square_triangles(texture: TextureLocation) -> Vec<draw::Triangle> {
     let half_side = 0.1; // Half the length of the side
 
-    let bl = draw::Vec3::new(-half_side, -half_side, 1.0); // Bottom-left
-    let br = draw::Vec3::new(half_side, -half_side, 1.0);  // Bottom-right
-    let tl = draw::Vec3::new(-half_side, half_side, 1.0);  // Top-left
-    let tr = draw::Vec3::new(half_side, half_side, 1.0);   // Top-right
+    let bl = Vec3::new(-half_side, -half_side, 1.0); // Bottom-left
+    let br = Vec3::new(half_side, -half_side, 1.0);  // Bottom-right
+    let tl = Vec3::new(-half_side, half_side, 1.0);  // Top-left
+    let tr = Vec3::new(half_side, half_side, 1.0);   // Top-right
 
     let mut triangles = Vec::new();
-    draw::Triangle::square(&mut triangles, bl, br, tr, tl);
+    draw::Triangle::square(&mut triangles, bl, br, tr, tl, &texture);
     triangles
 }
 
