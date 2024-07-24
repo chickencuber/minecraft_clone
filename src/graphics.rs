@@ -235,6 +235,34 @@ impl TextureMapping {
     }
 }
 
+pub trait TextureName {
+    fn get_texture_name(&self) -> String;
+}
+
+impl TextureName for &str {
+    fn get_texture_name(&self) -> String {
+        return self.to_string();
+    }
+}
+
+impl TextureName for String {
+    fn get_texture_name(&self) -> String {
+        return self.clone();
+    }
+}
+
+impl TextureName for i32 {
+    fn get_texture_name(&self) -> String {
+        return self.to_string();
+    }
+}
+
+impl TextureName for f32 {
+    fn get_texture_name(&self) -> String {
+        return self.to_string();
+    }
+}
+
 pub struct Shaders {
     vertex_shader_code: Option<String>,
     fragment_shader_code: Option<String>,
@@ -246,6 +274,7 @@ pub struct Shaders {
     pub textures: HashMap<String, TextureLocation>,
     uncompiled_textures: HashMap<String, DynamicImage>,
     pub texture_atlas: u32,
+    atlas_built: bool,
 }
 
 impl Shaders {
@@ -261,6 +290,7 @@ impl Shaders {
             textures: HashMap::new(),
             uncompiled_textures: HashMap::new(),
             texture_atlas: 0,
+            atlas_built: false,
         }
     }
 
@@ -383,8 +413,8 @@ impl Shaders {
             }
         }
     }
-    pub fn reg_texture(&mut self, name: &str, img: DynamicImage) { 
-        self.uncompiled_textures.insert(name.to_string(), img);
+    pub fn reg_texture<T: TextureName>(&mut self, name: T, img: DynamicImage) { 
+        self.uncompiled_textures.insert(name.get_texture_name(), img);
     }
     pub fn build_atlas(&mut self) {
         let mut img: image::RgbaImage; 
@@ -463,6 +493,19 @@ impl Shaders {
             gl::GenerateMipmap(gl::TEXTURE_2D);
         }
         self.texture_atlas = texture;
+        self.atlas_built = true;
+    }
+    pub fn get_texture<T: TextureName>(&self, name: T) -> TextureLocation {
+        let s = name.get_texture_name();
+        match self.textures.get(&s) {
+            Some(t) => *t,
+            None => {
+                if !self.atlas_built {
+                    panic!("the atlas has not been built");
+                }
+                panic!("{} is not a texture", s)
+            }
+        }
     }
 }
 

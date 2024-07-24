@@ -11,11 +11,11 @@ enum Textures {
     GrassBlockTop,
 }
 
-impl Textures {
-    pub fn get(&self) -> &str {
+impl TextureName for Textures {
+    fn get_texture_name(&self) -> String {
         match self {
             Self::GrassBlockTop => "grass-block-top",
-        }
+        }.to_string()
     }
 }
 
@@ -34,7 +34,7 @@ fn main() {
     window.shaders.set_fragment_shader(files::load_file("./shaders/fragment_shader.glsl", &DEV).unwrap().as_str());
     window.shaders.compile_shaders();
    
-    window.shaders.reg_texture(Textures::GrassBlockTop.get(), files::load_texture("./textures/grass_block_top.png", &DEV).unwrap());
+    window.shaders.reg_texture(Textures::GrassBlockTop, files::load_texture("./textures/grass_block_top.png", &DEV).unwrap());
     window.shaders.build_atlas();
 
     window.start();
@@ -53,7 +53,7 @@ fn update(window: &mut Window<GameData>) {
 }
 
 fn render(window: &mut Window<GameData>) {
-    let triangles: Vec<Triangle> = create_square_triangles(*window.shaders.textures.get(Textures::GrassBlockTop.get()).unwrap());
+    let triangles: Vec<Triangle> = create_square_triangles(window.shaders.get_texture(Textures::GrassBlockTop));
     window.render_triangles(&triangles);
 }
 
