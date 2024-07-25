@@ -9,12 +9,16 @@ struct GameData {
 
 enum Textures {
     GrassBlockTop,
+    GrassBlockSide,
+    DirtBlock,
 }
 
 impl TextureName for Textures {
     fn get_texture_name(&self) -> String {
         match self {
             Self::GrassBlockTop => "grass-block-top",
+            Self::GrassBlockSide => "grass-block-side",
+            Self::DirtBlock => "dirt-block",
         }.to_string()
     }
 }
@@ -35,6 +39,8 @@ fn main() {
     window.shaders.compile_shaders();
    
     window.shaders.reg_texture(Textures::GrassBlockTop, files::load_texture("./textures/grass_block_top.png", &DEV).unwrap());
+    window.shaders.reg_texture(Textures::GrassBlockSide, files::load_texture("./textures/grass_block_side.png",&DEV).unwrap());
+    window.shaders.reg_texture(Textures::DirtBlock, files::load_texture("./textures/dirt_block.png", &DEV).unwrap());
     window.shaders.build_atlas();
 
     window.start();
@@ -53,17 +59,19 @@ fn update(window: &mut Window<GameData>) {
 }
 
 fn render(window: &mut Window<GameData>) {
-    let triangles: Vec<Triangle> = create_square_triangles(window.shaders.get_texture(Textures::GrassBlockTop));
+    let mut triangles: Vec<Triangle> = create_square_triangles(window.shaders.get_texture(Textures::GrassBlockTop), 0.0, -0.2);
+    triangles.extend(create_square_triangles(window.shaders.get_texture(Textures::GrassBlockSide), 0.2, 0.0));
+    triangles.extend(create_square_triangles(window.shaders.get_texture(Textures::DirtBlock), 0.4, 0.2));
     window.render_triangles(&triangles);
 }
 
-pub fn create_square_triangles(texture: TextureLocation) -> Vec<draw::Triangle> {
+pub fn create_square_triangles(texture: TextureLocation, x: f32, y: f32) -> Vec<draw::Triangle> {
     let half_side = 0.1; // Half the length of the side
 
-    let bl = Vec3::new(-half_side, -half_side, 1.0); // Bottom-left
-    let br = Vec3::new(half_side, -half_side, 1.0);  // Bottom-right
-    let tl = Vec3::new(-half_side, half_side, 1.0);  // Top-left
-    let tr = Vec3::new(half_side, half_side, 1.0);   // Top-right
+    let bl = Vec3::new(-half_side + x, -half_side + y, 1.0); // Bottom-left
+    let br = Vec3::new(half_side + x, -half_side + y, 1.0);  // Bottom-right
+    let tl = Vec3::new(-half_side + x, half_side + y, 1.0);  // Top-left
+    let tr = Vec3::new(half_side + x, half_side + y, 1.0);   // Top-right
 
     let mut triangles = Vec::new();
     draw::Triangle::square(&mut triangles, bl, br, tr, tl, &texture);

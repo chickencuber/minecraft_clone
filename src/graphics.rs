@@ -4,6 +4,7 @@ use image::{DynamicImage, GenericImageView};
 use std::{collections::HashMap, thread::sleep, time::{Duration, Instant}};
 
 use nalgebra_glm as glm;
+pub use glm::{Vec3, Vec2};
 
 pub mod files {
     use std::{fs, io::prelude::Read, env::current_exe};
@@ -37,123 +38,12 @@ pub mod files {
     }
 }
 
+
+
 pub mod draw {
-    use std::ops::{Neg, Add, AddAssign, Mul, MulAssign, Sub, SubAssign, Div, DivAssign, Rem, RemAssign};
-    use rand::Rng;
-
     use crate::{TextureLocation, TextureMapping};
-    #[derive(PartialEq, Clone, Copy)]
-    pub struct Vec3 {
-        pub x: f32,
-        pub y: f32,
-        pub z: f32,
-    }
-
-    impl Vec3 {
-        pub fn new(x: f32, y: f32, z: f32) -> Self {
-            return Self {
-                x,
-                y,
-                z,
-            }
-        }
-        fn all(n: f32) -> Self {
-            return Self::new(n, n, n);
-        }
-        fn zero() -> Self {
-            return Self::all(0.0);
-        }
-        pub fn rand(min: f32, max: f32) -> Self {
-            let mut rng = rand::thread_rng();
-            Self {
-                x: rng.gen_range(min..max),
-                y: rng.gen_range(min..max),
-                z: rng.gen_range(min..max),
-            }
-        }        
-        pub fn set(&mut self, x: f32, y: f32, z: f32) {
-            self.x = x;
-            self.y = y;
-            self.z = z;
-        }
-        pub fn dist(&self, other: &Self) -> f32 {
-            let dx = self.x - other.x;
-            let dy = self.y - other.y;
-            let dz = self.z - other.z;
-            (dx * dx + dy * dy + dz * dz).sqrt()
-        }
-
-        // Compute the cross product of two vectors
-        pub fn cross(&self, other: &Self) -> Self {
-            Vec3 {
-                x: self.y * other.z - self.z * other.y,
-                y: self.z * other.x - self.x * other.z,
-                z: self.x * other.y - self.y * other.x,
-            }
-        }
-
-        // Compute the dot product of two vectors
-        pub fn dot(&self, other: &Self) -> f32 {
-            self.x * other.x + self.y * other.y + self.z * other.z
-        }
-        pub fn mag(&self) -> f32 {
-            return self.dist(&Self::new(0.0, 0.0, 0.0));
-        }
-        pub fn mag2(&self) -> f32 {
-            return self.x * self.x + self.y * self.y + self.z * self.z;
-        }
-        pub fn norm(&mut self) {
-            let mag = self.mag();
-            if mag == 0.0 {
-                return;
-            }
-            *self /= Self::all(mag);
-        }
-    }
-
-    impl Neg for Vec3 {
-        type Output = Self;
-        fn neg(self) -> Self::Output {
-            return Self::new(-self.x, -self.y, -self.z);
-        }
-    }
-
-    macro_rules! op {
-        ($name:ident, $fn_name:ident, $op:tt) => {
-            impl $name for Vec3 {
-                type Output = Self;
-                fn $fn_name(self, rhs: Self) -> Self::Output {
-                    return Self::new(self.x + rhs.x, self.y + rhs.y, self.z + rhs.z);
-                } 
-            }
-        };
-    }
-
-    macro_rules! assign {
-        ($name:ident, $fn_name:ident, $op:tt) => {
-            impl $name for Vec3 {
-                fn $fn_name(&mut self, rhs: Self) {
-                    self.x $op rhs.x;
-                    self.y $op rhs.y;
-                    self.z $op rhs.z;
-
-                } 
-            }
-
-        };
-    }
-
-    op!(Add, add, +);
-    assign!(AddAssign, add_assign, +=);
-    op!(Mul, mul, *);
-    assign!(MulAssign, mul_assign, *=);
-    op!(Sub, sub, -);
-    assign!(SubAssign, sub_assign, -=);
-    op!(Div, div, /);
-    assign!(DivAssign, div_assign, /=);
-    op!(Rem, rem, %);
-    assign!(RemAssign, rem_assign, %=);
-
+    
+    use super::Vec3;
 
     pub struct Triangle {
         pub p1: Vec3,
@@ -423,11 +313,12 @@ impl Shaders {
             let mut height = 0;
             for (_, v) in self.uncompiled_textures.iter() {
                 let (w, h) = v.dimensions();
-                width += w;
+                width += w + 2;
                 if h > height {
                     height = h;
                 }
-            } 
+            }
+            width -= 2;
             img = image::RgbaImage::new(width, height);
 
             let mut x_offset = 0;
@@ -457,7 +348,7 @@ impl Shaders {
                 self.textures.insert(key.clone(), texture_location);
 
                 // Update x_offset for the next texture
-                x_offset += w;
+                x_offset += w + 2;
             }
         }
         let (width, height) = img.dimensions();
@@ -506,6 +397,20 @@ impl Shaders {
                 panic!("{} is not a texture", s)
             }
         }
+    }
+}
+
+pub struct Camera {
+    pos: Vec3,
+    rotation: Vec2,
+}
+
+impl Camera {
+    fn new() -> Self{
+       return Self {
+           pos: Vec3::new(0.0, 0.0, 0.0),
+           rotation: Vec2::new(0.0, 0.0),
+       } 
     }
 }
 
@@ -720,7 +625,7 @@ impl<Data> Window<Data> {
             gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT); // Clear buffers
             self.shaders.use_program(); // Ensure shader program is used
             gl::BindVertexArray(vao);
-            gl::DrawArrays(gl::TRIANGLES, 0, (new_vec.len() / 5) as i32);
+            gl::DrawArrays(gl::TRIANGLES, 0, (vec.len() * 3) as i32);
 
             // Clean up
             gl::BindVertexArray(0);
