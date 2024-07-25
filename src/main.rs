@@ -4,7 +4,37 @@ use graphics::{*, draw::*};
 const DEV: bool = true;
 
 struct GameData {
-    
+   player: Player,
+   keys: Keys,
+}
+
+struct Player {
+}
+
+impl Player {
+    pub fn new() -> Self {
+        return Self {
+
+        }
+    }
+}
+
+struct Keys {
+    w: bool,
+    s: bool,
+    a: bool,
+    d: bool,
+}
+
+impl Keys {
+    pub fn new() -> Self {
+        return Self {
+            w: false,
+            s: false,
+            a: false,
+            d: false,
+        }
+    }
 }
 
 enum Textures {
@@ -25,12 +55,13 @@ impl TextureName for Textures {
 
 fn main() {
     let mut window = Window::create(640, 320, "minecraft_clone", WindowMode::Windowed, GameData {
-       
+        player: Player::new(),
+        keys: Keys::new(), 
     });
+
     window.set_min_size(640, 320);
     window.set_max_fps(60.0);
     window.set_update(update);
-    window.set_startup(start); 
     window.set_render(render);
     window.set_on_event(on_event);
 
@@ -47,15 +78,30 @@ fn main() {
 }
 
 fn on_event(window: &mut Window<GameData>, event: Event) {
-    
-}
-
-fn start(window: &mut Window<GameData>) {
-   
+    match event {
+        Event::Key(Key::W, _, Action::Press, _) => {
+            window.data.keys.w = true;
+        }
+        Event::Key(Key::W, _, Action::Release, _) => {
+            window.data.keys.w = false;
+        }
+        Event::Key(Key::S, _, Action::Press, _) => {
+            window.data.keys.s = true;
+        }
+        Event::Key(Key::S, _, Action::Release, _) => {
+            window.data.keys.s = false;
+        }
+        _ => {}
+    }    
 }
 
 fn update(window: &mut Window<GameData>) {
-    // Update logic
+    if window.data.keys.w {
+        window.camera.pos.z += 0.01;
+    }
+    if window.data.keys.s {
+        window.camera.pos.z -= 0.01;
+    }
 }
 
 fn render(window: &mut Window<GameData>) {

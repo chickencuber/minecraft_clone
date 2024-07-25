@@ -402,8 +402,8 @@ impl Shaders {
 }
 
 pub struct Camera {
-    pos: Vec3,
-    rotation: Vec2,
+    pub pos: Vec3,
+    pub rotation: Vec2,
 }
 
 impl Camera {
@@ -415,12 +415,14 @@ impl Camera {
     }
     pub fn to_matrix(&self) -> Mat4 {
         let mut view = glm::identity();
-
+        let mut pos = self.pos.clone();
+        pos.z *= -1.0;
+        
         view = glm::rotate_x(&view, self.rotation.x);
 
         view = glm::rotate_y(&view, self.rotation.y);
-
-        view = glm::translate(&view, &-self.pos);
+        
+        view = glm::translate(&view, &-pos);
 
         return view;
     }
@@ -430,7 +432,6 @@ pub struct Window<Data> {
     pub window_handler: Box<PWindow>,
     pub glfw: Box<Glfw>,
     pub event_handler: Box<GlfwReceiver<(f64, Event)>>,
-    startup: fn (&mut Self) -> (),
     update: fn (&mut Self) -> (),
     pub min_size: Option<(u32, u32)>,
     pub max_size: Option<(u32, u32)>,
@@ -474,7 +475,6 @@ impl<Data> Window<Data> {
             window_handler: Box::new(window),
             glfw: Box::new(glfw),
             event_handler: Box::new(events),
-            startup: |_window| {},
             update: |_window| {},
             on_event: |_window, _event| {},
             render: |_window| {},
@@ -522,15 +522,10 @@ impl<Data> Window<Data> {
     pub fn set_render(&mut self, func: fn(&mut Self) -> ()) {
         self.render = func;
     }
-    pub fn set_startup(&mut self, func: fn(&mut Self) -> ()) {
-        self.startup = func;
-    }
     pub fn set_update(&mut self, func: fn(&mut Self) -> ()) {
         self.update = func;
     }
     pub fn start(&mut self) {
-        (self.startup)(self);
-
         let mut last_time = Instant::now();
 
         while !self.window_handler.should_close() {
