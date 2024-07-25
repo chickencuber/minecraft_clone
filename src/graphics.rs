@@ -3,7 +3,7 @@ pub use glfw::{WindowMode, WindowEvent as Event, Key, Action};
 use image::{DynamicImage, GenericImageView};
 use std::{collections::HashMap, thread::sleep, time::{Duration, Instant}};
 
-use nalgebra_glm as glm;
+use nalgebra_glm::{self as glm, Mat4};
 pub use glm::{Vec3, Vec2};
 
 pub mod files {
@@ -319,6 +319,7 @@ impl Shaders {
                 }
             }
             width -= 2;
+            height += 1;
             img = image::RgbaImage::new(width, height);
 
             let mut x_offset = 0;
@@ -406,11 +407,22 @@ pub struct Camera {
 }
 
 impl Camera {
-    fn new() -> Self{
+    pub fn new() -> Self{
        return Self {
            pos: Vec3::new(0.0, 0.0, 0.0),
            rotation: Vec2::new(0.0, 0.0),
        } 
+    }
+    pub fn to_matrix(&self) -> Mat4 {
+        let mut view = glm::identity();
+
+        view = glm::rotate_x(&view, self.rotation.x);
+
+        view = glm::rotate_y(&view, self.rotation.y);
+
+        view = glm::translate(&view, &-self.pos);
+
+        return view;
     }
 }
 
@@ -430,6 +442,7 @@ pub struct Window<Data> {
     pub deltatime: f64,
     pub frame_count: u64,
     pub max_fps: Option<f64>,
+    pub camera: Camera,
 }
 
 impl<Data> Window<Data> {
@@ -473,6 +486,7 @@ impl<Data> Window<Data> {
             deltatime: 0.0,
             frame_count: 0,
             max_fps: None,
+            camera: Camera::new(),
         }
     }
     pub fn set_min_size(&mut self, width: u32, height: u32) {
@@ -581,6 +595,7 @@ impl<Data> Window<Data> {
 
             self.shaders.use_program();
             self.shaders.set_uniform_matrix("u_ProjectionMatrix", &projection_matrix);
+            self.shaders.set_uniform_matrix("u_CameraMatrix", &self.camera.to_matrix());
 
             // Set the texture uniform
             let texture_uniform_location = gl::GetUniformLocation(self.shaders.program, "textureSampler\0".as_ptr() as *const i8);

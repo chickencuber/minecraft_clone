@@ -75,6 +75,6 @@ pub fn create_square_triangles(texture: TextureLocation, x: f32, y: f32) -> Vec<
 
     let mut triangles = Vec::new();
     draw::Triangle::square(&mut triangles, bl, br, tr, tl, &texture);
-    triangles
+    return triangles;
 }
 
