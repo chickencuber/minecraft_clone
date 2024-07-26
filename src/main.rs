@@ -11,6 +11,14 @@ struct GameData {
    sensitivity: f32,
 }
 
+struct World {
+    chunks: Vec<Vec<Chunk>>,
+}
+
+struct Chunk {
+    face_x: [[i16; 16]; 256],
+}
+
 struct Player {
     speed: f32,
 }
