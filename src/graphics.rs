@@ -61,6 +61,12 @@ pub mod draw {
                 p1, p2, p3, t1: t1.get(*texture_id), t2: t2.get(*texture_id), t3: t3.get(*texture_id),
             }
         } 
+        pub fn create(vec: &mut Vec<f32>, p1: Vec3, p2: Vec3, p3: Vec3, texture_id: &TextureLocation, t1: TextureMapping, t2: TextureMapping, t3: TextureMapping) {
+            Self::new(p1, p2, p3, texture_id, t1, t2, t3).to_points(vec);
+        }
+        pub fn create_square(vec: &mut Vec<f32>, tl: Vec3, tr: Vec3, br: Vec3, bl: Vec3, texture_id: &TextureLocation) {
+            
+        }
         pub fn square(vec: &mut Vec<Triangle>, tl: Vec3, tr: Vec3, br: Vec3, bl: Vec3, texture_id: &TextureLocation) {
             vec.push(Triangle::new(tl, tr, br, texture_id, TextureMapping::TopLeft, TextureMapping::TopRight, TextureMapping::BottomRight));
             vec.push(Triangle::new(tl, bl, br, texture_id, TextureMapping::TopLeft, TextureMapping::BottomLeft, TextureMapping::BottomRight));
@@ -81,6 +87,19 @@ pub mod draw {
             vec.push(-self.p3.z);
             vec.push(self.t3.0);
             vec.push(self.t3.1);
+        }
+    }
+    trait ToPoints {
+        fn to_points(&self) -> Vec<f32>;
+    }
+
+    impl ToPoints for Vec<Triangle> {
+        fn to_points(&self) -> Vec<f32> {
+            let mut new_vec: Vec<f32> = Vec::new();
+            for tri in self {
+                tri.to_points(&mut new_vec); 
+            }
+            return new_vec;
         }
     }
 }
@@ -601,11 +620,7 @@ impl<Data> Window<Data> {
             self.fps = 1.0 / self.deltatime;
         }
     }
-    pub fn render_triangles(&self, vec: &Vec<draw::Triangle>) {
-        let mut new_vec: Vec<f32> = Vec::new();
-        for tri in vec {
-            tri.to_points(&mut new_vec); 
-        }
+    pub fn render_triangles(&self, vec: &Vec<f32>) {
         unsafe {
             let (width, height) = self.get_resolution();
             let aspect_ratio = width as f32 / height as f32;
@@ -639,8 +654,8 @@ impl<Data> Window<Data> {
             gl::BindBuffer(gl::ARRAY_BUFFER, vbo);
             gl::BufferData(
                 gl::ARRAY_BUFFER,
-                (new_vec.len() * std::mem::size_of::<f32>()) as isize,
-                new_vec.as_ptr() as *const _,
+                (vec.len() * std::mem::size_of::<f32>()) as isize,
+                vec.as_ptr() as *const _,
                 gl::STATIC_DRAW,
                 );
 
@@ -666,7 +681,7 @@ impl<Data> Window<Data> {
             gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT); // Clear buffers
             self.shaders.use_program(); // Ensure shader program is used
             gl::BindVertexArray(vao);
-            gl::DrawArrays(gl::TRIANGLES, 0, (vec.len() * 3) as i32);
+            gl::DrawArrays(gl::TRIANGLES, 0, (vec.len() / 5) as i32);
 
             // Clean up
             gl::BindVertexArray(0);
