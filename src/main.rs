@@ -1,20 +1,24 @@
 mod graphics;
 use graphics::{*, draw::*};
 
+use nalgebra_glm as glm;
+
 const DEV: bool = true;
 
 struct GameData {
    player: Player,
    keys: Keys,
+   sensitivity: f32,
 }
 
 struct Player {
+    speed: f32,
 }
 
 impl Player {
     pub fn new() -> Self {
         return Self {
-
+            speed: 0.02, 
         }
     }
 }
@@ -56,7 +60,8 @@ impl TextureName for Textures {
 fn main() {
     let mut window = Window::create(640, 320, "minecraft_clone", WindowMode::Windowed, GameData {
         player: Player::new(),
-        keys: Keys::new(), 
+        keys: Keys::new(),
+        sensitivity: 0.003,
     });
 
     window.set_min_size(640, 320);
@@ -79,28 +84,60 @@ fn main() {
 
 fn on_event(window: &mut Window<GameData>, event: Event) {
     match event {
-        Event::Key(Key::W, _, Action::Press, _) => {
-            window.data.keys.w = true;
+        Event::Key(Key::W, _, action, _) => {
+            if action == Action::Repeat {return;}
+            window.data.keys.w = action == Action::Press;
         }
-        Event::Key(Key::W, _, Action::Release, _) => {
-            window.data.keys.w = false;
+        Event::Key(Key::S, _, action, _) => {
+            if action == Action::Repeat {return;}
+            window.data.keys.s = action == Action::Press;
         }
-        Event::Key(Key::S, _, Action::Press, _) => {
-            window.data.keys.s = true;
+        Event::Key(Key::A, _, action, _) => {
+            if action == Action::Repeat {return;}
+            window.data.keys.a = action == Action::Press;
         }
-        Event::Key(Key::S, _, Action::Release, _) => {
-            window.data.keys.s = false;
+        Event::Key(Key::D, _, action, _) => {
+            if action == Action::Repeat {return;}
+            window.data.keys.d = action == Action::Press;
+        }
+        Event::Key(Key::Escape, _, Action::Press, _) => {
+            if window.get_cursor_mode() == CursorMode::Disabled {
+                window.set_cursor_mode(CursorMode::Normal);
+            } else {
+                window.set_cursor_mode(CursorMode::Disabled);
+                window.set_cursor_pos(Vec2::new(0.0, 0.0));
+            }
+        }
+        Event::CursorPos(_, _) => {
+            if window.get_cursor_mode() == CursorMode::Normal {return;}
+            let mut pos = window.get_cursor_pos();
+            pos.x *= window.data.sensitivity;
+            pos.y *= window.data.sensitivity;
+            window.camera.rotation += pos;
+            window.set_cursor_pos(Vec2::new(0.0, 0.0));
         }
         _ => {}
     }    
 }
 
 fn update(window: &mut Window<GameData>) {
+    let mut move_vec = Vec3::new(0.0, 0.0, 0.0);
     if window.data.keys.w {
-        window.camera.pos.z += 0.01;
+       move_vec.z = 1.0;
     }
     if window.data.keys.s {
-        window.camera.pos.z -= 0.01;
+        move_vec.z = -1.0;
+    }
+    if window.data.keys.a {
+        move_vec.x = -1.0;
+    }
+    if window.data.keys.d {
+        move_vec.x = 1.0;
+    }
+    if move_vec != Vec3::new(0.0, 0.0, 0.0) {
+        move_vec = move_vec.normalize() * window.data.player.speed;
+        rotate(&mut move_vec, &window.camera.rotation); 
+        window.camera.pos = window.camera.pos + move_vec;
     }
 }
 
@@ -122,5 +159,14 @@ pub fn create_square_triangles(texture: TextureLocation, x: f32, y: f32) -> Vec<
     let mut triangles = Vec::new();
     draw::Triangle::square(&mut triangles, bl, br, tr, tl, &texture);
     return triangles;
+}
+
+fn rotate(vec: &mut Vec3, rotation: &Vec2) {
+    let mut view = glm::identity();
+
+    view = glm::rotate_y(&view, rotation.x);
+
+    let new_vec = view * glm::vec3_to_vec4(vec);
+    *vec = new_vec.xyz();
 }
 

@@ -1,5 +1,5 @@
-use glfw::{Context, Glfw, PWindow, GlfwReceiver};
-pub use glfw::{WindowMode, WindowEvent as Event, Key, Action};
+use glfw::{Context, Glfw, GlfwReceiver, PWindow};
+pub use glfw::{WindowMode, WindowEvent as Event, Key, Action, CursorMode, MouseButton};
 use image::{DynamicImage, GenericImageView};
 use std::{collections::HashMap, thread::sleep, time::{Duration, Instant}};
 
@@ -418,9 +418,9 @@ impl Camera {
         let mut pos = self.pos.clone();
         pos.z *= -1.0;
         
-        view = glm::rotate_x(&view, self.rotation.x);
+        view = glm::rotate_x(&view, self.rotation.y);
 
-        view = glm::rotate_y(&view, self.rotation.y);
+        view = glm::rotate_y(&view, self.rotation.x);
         
         view = glm::translate(&view, &-pos);
 
@@ -447,6 +447,28 @@ pub struct Window<Data> {
 }
 
 impl<Data> Window<Data> {
+    pub fn close(&mut self) {
+        self.window_handler.set_should_close(true);
+    }
+    pub fn set_cursor_mode(&mut self, mode: CursorMode) {
+        self.window_handler.set_cursor_mode(mode);
+    }
+    pub fn get_cursor_mode(&self) -> CursorMode {
+        return self.window_handler.get_cursor_mode();
+    }
+    pub fn set_raw_mouse_motion(&mut self, b: bool) {
+        self.window_handler.set_raw_mouse_motion(b);
+    }
+    pub fn get_raw_mouse_motion(&self) -> bool {
+        return self.window_handler.uses_raw_mouse_motion();
+    }
+    pub fn get_cursor_pos(&self) -> Vec2 {
+        let (x, y) = self.window_handler.get_cursor_pos();
+        return Vec2::new(x as f32, y as f32);
+    }
+    pub fn set_cursor_pos(&mut self, pos: Vec2) {
+        self.window_handler.set_cursor_pos(pos.x as f64, pos.y as f64);
+    }
     pub fn create (width: u16, height: u16, name: &str, mode: WindowMode, data: Data) -> Self {
         let mut glfw = glfw::init(glfw::fail_on_errors).unwrap();
 
@@ -460,8 +482,7 @@ impl<Data> Window<Data> {
         let (mut window, events) = glfw.create_window(width.into(), height.into(), name, mode).expect("Failed to create GLFW window.");
 
         window.make_current();
-        window.set_framebuffer_size_polling(true);
-        window.set_key_polling(true);
+        window.set_all_polling(true);
         gl::load_with(|s| window.get_proc_address(s) as *const _);
 
         let (screen_width, screen_height) = window.get_framebuffer_size();
