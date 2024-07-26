@@ -112,6 +112,7 @@ pub enum TextureMapping {
     TopRight,
     BottomLeft,
     BottomRight,
+    Manual(f32, f32),
 }
 
 impl TextureMapping {
@@ -121,6 +122,15 @@ impl TextureMapping {
             Self::BottomRight => location.br,
             Self::TopLeft => location.tl,
             Self::TopRight => location.tr,
+            Self::Manual(u, v) => {
+                let (u_min, v_min) = location.bl; // Bottom-left
+                let (u_max, v_max) = location.tr; // Top-right
+
+                let u_coord = u_min + u * (u_max - u_min);
+                let v_coord = v_min + v * (v_max - v_min);
+
+                return (u_coord, v_coord);
+            }
         }
     }
 }

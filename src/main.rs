@@ -28,6 +28,8 @@ struct Keys {
     s: bool,
     a: bool,
     d: bool,
+    space: bool,
+    shift: bool,
 }
 
 impl Keys {
@@ -37,6 +39,8 @@ impl Keys {
             s: false,
             a: false,
             d: false,
+            space: false,
+            shift: false,
         }
     }
 }
@@ -100,6 +104,14 @@ fn on_event(window: &mut Window<GameData>, event: Event) {
             if action == Action::Repeat {return;}
             window.data.keys.d = action == Action::Press;
         }
+        Event::Key(Key::Space, _, action, _) => {
+            if action == Action::Repeat {return;}
+            window.data.keys.space = action == Action::Press;
+        }
+        Event::Key(Key::LeftShift, _, action, _) => {
+            if action == Action::Repeat {return;}
+            window.data.keys.shift = action == Action::Press;
+        }
         Event::Key(Key::Escape, _, Action::Press, _) => {
             if window.get_cursor_mode() == CursorMode::Disabled {
                 window.set_cursor_mode(CursorMode::Normal);
@@ -123,21 +135,27 @@ fn on_event(window: &mut Window<GameData>, event: Event) {
 fn update(window: &mut Window<GameData>) {
     let mut move_vec = Vec3::new(0.0, 0.0, 0.0);
     if window.data.keys.w {
-       move_vec.z = 1.0;
+       move_vec.z += 1.0;
     }
     if window.data.keys.s {
-        move_vec.z = -1.0;
+        move_vec.z -= 1.0;
     }
     if window.data.keys.a {
-        move_vec.x = -1.0;
+        move_vec.x -= 1.0;
     }
     if window.data.keys.d {
-        move_vec.x = 1.0;
+        move_vec.x += 1.0;
     }
     if move_vec != Vec3::new(0.0, 0.0, 0.0) {
         move_vec = move_vec.normalize() * window.data.player.speed;
         rotate(&mut move_vec, &window.camera.rotation); 
         window.camera.pos = window.camera.pos + move_vec;
+    }
+    if window.data.keys.space {
+        window.camera.pos.y += window.data.player.speed;
+    }
+    if window.data.keys.shift {
+        window.camera.pos.y -= window.data.player.speed;
     }
 }
 
