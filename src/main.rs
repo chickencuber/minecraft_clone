@@ -1,5 +1,7 @@
 mod graphics;
 use graphics::{*, draw::*};
+mod world;
+use world::*;
 
 use nalgebra_glm as glm;
 
@@ -9,14 +11,7 @@ struct GameData {
    player: Player,
    keys: Keys,
    sensitivity: f32,
-}
-
-struct World {
-    chunks: Vec<Vec<Chunk>>,
-}
-
-struct Chunk {
-    face_x: [[i16; 16]; 256],
+   world: World,
 }
 
 struct Player {
@@ -74,7 +69,10 @@ fn main() {
         player: Player::new(),
         keys: Keys::new(),
         sensitivity: 0.003,
+        world: World::new(),
     });
+
+    // sets up window
 
     window.set_min_size(640, 320);
     window.set_max_fps(60.0);
@@ -82,14 +80,48 @@ fn main() {
     window.set_render(render);
     window.set_on_event(on_event);
 
+    // creates shaders
+
     window.shaders.set_vertex_shader(files::load_file("./shaders/vertex_shader.glsl", &DEV).unwrap().as_str());
     window.shaders.set_fragment_shader(files::load_file("./shaders/fragment_shader.glsl", &DEV).unwrap().as_str());
     window.shaders.compile_shaders();
    
+    // creates textures
+
     window.shaders.reg_texture(Textures::GrassBlockTop, files::load_texture("./textures/grass_block_top.png", &DEV).unwrap());
     window.shaders.reg_texture(Textures::GrassBlockSide, files::load_texture("./textures/grass_block_side.png",&DEV).unwrap());
     window.shaders.reg_texture(Textures::DirtBlock, files::load_texture("./textures/dirt_block.png", &DEV).unwrap());
     window.shaders.build_atlas();
+
+    // creates blocks
+    
+    window.data.world.reg_block(BlockData {
+        name: "grass block".to_string(),
+        size: (1.0, 1.0, 1.0),
+        texture: TextureType::Log(LogTextureMap {
+            top: Box::new(Textures::GrassBlockTop),
+            side: Box::new(Textures::GrassBlockSide),
+            bottom: Box::new(Textures::DirtBlock),
+        }),
+        rotate: false,
+        start: None,
+        tick: None,
+        update: None,
+        random_tick: None,
+    });
+
+    window.data.world.reg_block(BlockData {
+        name: "dirt block".to_string(),
+        size: (1.0, 1.0, 1.0),
+        texture: TextureType::All(Box::new(Textures::DirtBlock)),
+        rotate: false,
+        tick: None,
+        start: None,
+        update: None,
+        random_tick: None,
+    });
+
+    //starts window
 
     window.start();
 }
