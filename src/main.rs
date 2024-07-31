@@ -94,7 +94,7 @@ fn main() {
     window.shaders.build_atlas();
 
     // creates blocks
-    
+
     window.data.world.reg_block(BlockData {
         name: "grass block".to_string(),
         size: (1.0, 1.0, 1.0),
@@ -120,8 +120,8 @@ fn main() {
         update: None,
         random_tick: None,
     });
-
     //starts window
+    
 
     window.start();
 }
@@ -208,7 +208,7 @@ fn rotate(vec: &mut Vec3, rotation: &Vec2) {
     let mut view = glm::identity();
 
     view = glm::rotate_y(&view, rotation.x);
-
+    
     let new_vec = view * glm::vec3_to_vec4(vec);
     *vec = new_vec.xyz();
 }

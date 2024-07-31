@@ -1,15 +1,17 @@
 use crate::{TextureLocation, TextureName};
-use crate::graphics::Vec3;
+use crate::graphics::{Vec3, Ops};
+
+const WORLDSIZE: usize = 255;
 
 pub struct World {
-    chunks: Vec<Vec<Chunk>>,
+    chunks: [[[Chunk; 16]; WORLDSIZE]; WORLDSIZE],
     blocks: Vec<BlockData>,
 }
 
 impl World {
     pub fn new() -> Self {
         let mut this = Self {
-            chunks: Vec::new(),
+            chunks: [[[Chunk::new(); 16]; WORLDSIZE]; WORLDSIZE],
             blocks: Vec::new(),
         };
         this.reg_block(BlockData {
@@ -22,38 +24,31 @@ impl World {
             update: None,
             start: None,
         });
-        this.chunks.push(vec![Chunk::new()]);
         return this;
     }
     pub fn reg_block(&mut self, data: BlockData) {
         self.blocks.push(data)
     }
     pub fn place_block(&mut self, vec: Vec3, block: Block) {
-
+        let (mut chunk, offset) = self.get_chunk(vec);
+        chunk.blocks[offset.x as usize][offset.y as usize][offset.z as usize] = block;
     }
-    pub fn replace_block(&mut self, vec: Vec3, id: u64) {
-        self.get_block(vec).id = id;
-    }
-    pub fn get_block(&self, vec: Vec3) -> &mut Block {
-        
-    }
-}
+    fn get_chunk(&self, vec: Vec3) -> (Chunk, Vec3) {
+        let chunk_size = Vec3::new(16.0, 16.0, 16.0);
 
-pub struct Chunk {
-    y_chunks: [YChunks; 16],
-}
+        let chunk = vec.div(chunk_size).floor();
+        let offset = vec.rem(chunk_size).round();
 
-impl Chunk {
-    pub fn new() -> Self {
-        let y: [YChunks; 16] = [YChunks::new(); 16];
-        return Self {
-            y_chunks: y, 
-        } 
+        return (self.chunks[chunk.x as usize][chunk.z as usize][chunk.y as usize], offset);
+    }
+    pub fn get_block(&self, vec: Vec3) -> Block {
+        let (chunk, offset) = self.get_chunk(vec);
+        return chunk.blocks[offset.x as usize][offset.y as usize][offset.z as usize];
     }
 }
 
 #[derive(Clone, Copy)]
-struct YChunks {
+struct Chunk {
     x_s: [[u16; 16]; 16],
     y_s: [[u16; 16]; 16],
     z_s: [[u16; 16]; 16],
@@ -65,7 +60,7 @@ struct YChunks {
     blocks: [[[Block; 16]; 16]; 16],
 }
 
-impl YChunks {
+impl Chunk {
     pub fn new() -> Self {
         return Self {
             x_s: [[0; 16]; 16],
@@ -76,7 +71,7 @@ impl YChunks {
             y_t: [[0; 16]; 16],
             z_t: [[0; 16]; 16],
 
-            blocks: [[[Block::new(); 16]; 16]; 16],
+            blocks: [[[Block::new(0, NbtBlock::new()); 16]; 16]; 16],
         }
     }
 }
@@ -130,16 +125,19 @@ pub enum TextureType{
 
 #[derive(Clone, Copy)]
 pub struct Block {
-    nbt: NbtBlock,
+    pub nbt: NbtBlock,
     id: u64,
 }
 
 impl Block {
-    pub fn new() -> Self {
+    pub fn new(id: u64, nbt: NbtBlock) -> Self {
         return Self {
-            nbt: NbtBlock::new(),
-            id: 0,
+            nbt,
+            id,
         }
+    }
+    pub fn get_id(&self) -> u64 {
+        return self.id;
     }
 }
 

@@ -6,6 +6,71 @@ use std::{collections::HashMap, thread::sleep, time::{Duration, Instant}};
 use nalgebra_glm::{self as glm, Mat4};
 pub use glm::{Vec3, Vec2};
 
+pub trait Ops {
+    fn add(&self, rhs: Self) -> Self;
+    fn sub(&self, rhs: Self) -> Self;
+    fn mul(&self, rhs: Self) -> Self;
+    fn div(&self, rhs: Self) -> Self;
+    fn rem(&self, rhs: Self) -> Self;
+    fn round(&self) -> Self;
+    fn floor(&self) -> Self;
+    fn ceil(&self) -> Self;
+}
+
+macro_rules! vec3 {
+    ($name:ident, $op:tt) => {
+       fn $name(&self, rhs: Self) -> Self {
+           return Self::new(self.x $op rhs.x, self.y $op rhs.y, self.z $op rhs.z)
+       } 
+    };
+}
+
+macro_rules! vec3_round {
+    ($name:ident) => {
+       fn $name(&self) -> Self {
+           return Self::new(self.x.$name(), self.y.$name(), self.z.$name());
+       } 
+    };
+}
+
+impl Ops for Vec3 {
+    vec3!(add, +);
+    vec3!(sub, -);
+    vec3!(mul, *);
+    vec3!(div, /);
+    vec3!(rem, %);
+    vec3_round!(round);
+    vec3_round!(floor);
+    vec3_round!(ceil);
+}
+
+macro_rules! vec2 {
+    ($name:ident, $op:tt) => {
+       fn $name(&self, rhs: Self) -> Self {
+           return Self::new(self.x + rhs.x, self.y + rhs.y);
+       } 
+    };
+}
+
+macro_rules! vec2_round {
+    ($name:ident) => {
+       fn $name(&self) -> Self {
+           return Self::new(self.x.$name(), self.y.$name());
+       } 
+    };
+}
+
+impl Ops for Vec2 {
+    vec2!(add, +);
+    vec2!(sub, -);
+    vec2!(mul, *);
+    vec2!(div, /);
+    vec2!(rem, %);
+    vec2_round!(round);
+    vec2_round!(floor);
+    vec2_round!(ceil);
+}
+
 pub mod files {
     use std::{fs, io::prelude::Read, env::current_exe};
 
@@ -65,11 +130,12 @@ pub mod draw {
             Self::new(p1, p2, p3, texture_id, t1, t2, t3).to_points(vec);
         }
         pub fn create_square(vec: &mut Vec<f32>, tl: Vec3, tr: Vec3, br: Vec3, bl: Vec3, texture_id: &TextureLocation) {
-            
+           Self::create(vec, tl, tr, br, texture_id, TextureMapping::TopLeft, TextureMapping::TopRight, TextureMapping::BottomRight);
+           Self::create(vec, tl, bl, br, texture_id, TextureMapping::TopLeft, TextureMapping::BottomLeft, TextureMapping::BottomRight);
         }
         pub fn square(vec: &mut Vec<Triangle>, tl: Vec3, tr: Vec3, br: Vec3, bl: Vec3, texture_id: &TextureLocation) {
-            vec.push(Triangle::new(tl, tr, br, texture_id, TextureMapping::TopLeft, TextureMapping::TopRight, TextureMapping::BottomRight));
-            vec.push(Triangle::new(tl, bl, br, texture_id, TextureMapping::TopLeft, TextureMapping::BottomLeft, TextureMapping::BottomRight));
+            vec.push(Self::new(tl, tr, br, texture_id, TextureMapping::TopLeft, TextureMapping::TopRight, TextureMapping::BottomRight));
+            vec.push(Self::new(tl, bl, br, texture_id, TextureMapping::TopLeft, TextureMapping::BottomLeft, TextureMapping::BottomRight));
         }
         pub fn to_points(&self, vec: &mut Vec<f32>) {
             vec.push(self.p1.x);
