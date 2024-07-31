@@ -28,6 +28,15 @@ impl World {
     pub fn reg_block(&mut self, data: BlockData) {
         self.blocks.push(data)
     }
+    pub fn place_block(&mut self, vec: Vec3, block: Block) {
+
+    }
+    pub fn replace_block(&mut self, vec: Vec3, id: u64) {
+        self.get_block(vec).id = id;
+    }
+    pub fn get_block(&self, vec: Vec3) -> &mut Block {
+        
+    }
 }
 
 pub struct Chunk {
@@ -53,7 +62,7 @@ struct YChunks {
     y_t: [[u16; 16]; 16],
     z_t: [[u16; 16]; 16],
 
-    blocks: [[[(u64, NbtBlock); 16]; 16]; 16],
+    blocks: [[[Block; 16]; 16]; 16],
 }
 
 impl YChunks {
@@ -67,7 +76,7 @@ impl YChunks {
             y_t: [[0; 16]; 16],
             z_t: [[0; 16]; 16],
 
-            blocks: [[[(0, NbtBlock::new()); 16]; 16]; 16],
+            blocks: [[[Block::new(); 16]; 16]; 16],
         }
     }
 }
@@ -119,14 +128,29 @@ pub enum TextureType{
     Log(LogTextureMap)
 }
 
+#[derive(Clone, Copy)]
+pub struct Block {
+    nbt: NbtBlock,
+    id: u64,
+}
+
+impl Block {
+    pub fn new() -> Self {
+        return Self {
+            nbt: NbtBlock::new(),
+            id: 0,
+        }
+    }
+}
+
 pub struct BlockData {
     pub texture: TextureType,
     pub rotate: bool,
     pub size: (f32, f32, f32),
     pub name: String,
-    pub tick: Option<fn(Vec3, &mut World) -> ()>,
-    pub update: Option<fn(Vec3, &mut World) -> ()>,
-    pub start: Option<fn(Vec3, &mut World) -> ()>,
-    pub random_tick: Option<fn(Vec3, &mut World) -> ()>,
+    pub tick: Option<fn(Vec3, &mut Block, &mut World) -> ()>,
+    pub update: Option<fn(Vec3, &mut Block, &mut World) -> ()>,
+    pub start: Option<fn(Vec3, &mut Block, &mut World) -> ()>,
+    pub random_tick: Option<fn(Vec3, &mut Block, &mut World) -> ()>,
 }
 
