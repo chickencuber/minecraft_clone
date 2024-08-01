@@ -1,17 +1,14 @@
-use crate::{TextureLocation, TextureName};
-use crate::graphics::{Vec3, Ops};
-
-const WORLDSIZE: usize = 255;
+use crate::graphics::{*, draw::*};
 
 pub struct World {
-    chunks: [[[Chunk; 16]; WORLDSIZE]; WORLDSIZE],
-    blocks: Vec<BlockData>,
+    chunks: Vec<Vec<[Chunk; 16]>>,
+    pub blocks: Vec<BlockData>,
 }
 
 impl World {
     pub fn new() -> Self {
         let mut this = Self {
-            chunks: [[[Chunk::new(); 16]; WORLDSIZE]; WORLDSIZE],
+            chunks: vec![vec![[Chunk::new(); 16]]],
             blocks: Vec::new(),
         };
         this.reg_block(BlockData {
@@ -23,6 +20,8 @@ impl World {
             tick: None,
             update: None,
             start: None,
+            render: None,
+            solid: None,
         });
         return this;
     }
@@ -30,20 +29,40 @@ impl World {
         self.blocks.push(data)
     }
     pub fn place_block(&mut self, vec: Vec3, block: Block) {
-        let (mut chunk, offset) = self.get_chunk(vec);
-        chunk.blocks[offset.x as usize][offset.y as usize][offset.z as usize] = block;
+        let (chunk, offset) = self.get_chunk(vec);
+        if let Some(x) = self.chunks.get_mut(chunk.x as usize) {
+            if let Some(z) = x.get_mut(chunk.z as usize) {
+                if let Some(y) = z.get_mut(chunk.y as usize) {
+                    y.blocks[offset.x as usize][offset.y as usize][offset.z as usize] = block;
+                }
+            }
+        } 
     }
-    fn get_chunk(&self, vec: Vec3) -> (Chunk, Vec3) {
+    fn get_chunk(&self, vec: Vec3) -> (Vec3, Vec3) {
         let chunk_size = Vec3::new(16.0, 16.0, 16.0);
-
         let chunk = vec.div(chunk_size).floor();
         let offset = vec.rem(chunk_size).round();
-
-        return (self.chunks[chunk.x as usize][chunk.z as usize][chunk.y as usize], offset);
+        return (chunk, offset);
     }
     pub fn get_block(&self, vec: Vec3) -> Block {
         let (chunk, offset) = self.get_chunk(vec);
-        return chunk.blocks[offset.x as usize][offset.y as usize][offset.z as usize];
+        if let Some(x) = self.chunks.get(chunk.x as usize) {
+            if let Some(z) = x.get(chunk.z as usize) {
+                if let Some(y) = z.get(chunk.y as usize) {
+                    return y.blocks[offset.x as usize][offset.y as usize][offset.z as usize];
+                }
+            }
+        } 
+        return Block::new(0, NbtBlock::new());
+    }
+    pub fn render(&self, vert: &mut Vec<f32>, player: Vec3) {
+        let (chunk, _) = self.get_chunk(player); 
+        if let Some(x) = self.chunks.get(chunk.x as usize) {
+            if let Some(z) = x.get(chunk.z as usize) {
+                if let Some(y) = z.get(chunk.y as usize) {
+                }
+            }
+        } 
     }
 }
 
@@ -150,5 +169,7 @@ pub struct BlockData {
     pub update: Option<fn(Vec3, &mut Block, &mut World) -> ()>,
     pub start: Option<fn(Vec3, &mut Block, &mut World) -> ()>,
     pub random_tick: Option<fn(Vec3, &mut Block, &mut World) -> ()>,
+    pub render: Option<fn(Vec3, &mut Block, &mut World) ->()>,
+    pub solid: Option<bool>,
 }
 

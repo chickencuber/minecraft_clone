@@ -108,6 +108,8 @@ fn main() {
         tick: None,
         update: None,
         random_tick: None,
+        render: None,
+        solid: Some(true),
     });
 
     window.data.world.reg_block(BlockData {
@@ -119,9 +121,12 @@ fn main() {
         start: None,
         update: None,
         random_tick: None,
+        render: None,
+        solid: Some(true),
     });
     //starts window
-    
+   
+    window.data.world.place_block(Vec3::new(0.0, 0.0, 0.0), Block::new(1, NbtBlock::new()));
 
     window.start();
 }
