@@ -12,16 +12,18 @@ impl World {
             blocks: Vec::new(),
         };
         this.reg_block(BlockData {
-            texture: TextureType::None,
+            model: ModelType::Block(BlockModelType {
+                block_size: (1.0, 1.0, 1.0),
+                texture: BlockTextureType::None,
+            }),
             rotate: false,
-            size: (1.0, 1.0, 1.0),
+            collision_size: (1.0, 1.0, 1.0),
             name: "air".to_string(),
             random_tick: None,
             tick: None,
             update: None,
             start: None,
-            render: None,
-            solid: None,
+            block_type: BlockType::None,
         });
         return this;
     }
@@ -135,7 +137,7 @@ pub struct LogTextureMap {
     pub bottom: Box<dyn TextureName>,
 }
 
-pub enum TextureType{
+pub enum BlockTextureType{
     None,
     All(Box<dyn TextureName>),
     Each(TextureMap),
@@ -160,16 +162,36 @@ impl Block {
     }
 }
 
+pub enum BlockType {
+    None,
+    Solid,
+    Transparent,
+}
+
+pub enum ModelType {
+    Block(BlockModelType),
+    Custom(Vec<Faces>)
+}
+
+pub struct Faces {
+    pub points: (Vec3, Vec3, Vec3),
+    pub texture: Box<dyn TextureName>,
+}
+
+pub struct BlockModelType {
+    pub block_size: (f32, f32, f32),
+    pub texture: BlockTextureType,
+}
+
 pub struct BlockData {
-    pub texture: TextureType,
+    pub model: ModelType,
     pub rotate: bool,
-    pub size: (f32, f32, f32),
+    pub collision_size: (f32, f32, f32),
     pub name: String,
     pub tick: Option<fn(Vec3, &mut Block, &mut World) -> ()>,
     pub update: Option<fn(Vec3, &mut Block, &mut World) -> ()>,
     pub start: Option<fn(Vec3, &mut Block, &mut World) -> ()>,
     pub random_tick: Option<fn(Vec3, &mut Block, &mut World) -> ()>,
-    pub render: Option<fn(Vec3, &mut Block, &mut World) ->()>,
-    pub solid: Option<bool>,
+    pub block_type: BlockType,
 }
 

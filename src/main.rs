@@ -97,32 +97,36 @@ fn main() {
 
     window.data.world.reg_block(BlockData {
         name: "grass block".to_string(),
-        size: (1.0, 1.0, 1.0),
-        texture: TextureType::Log(LogTextureMap {
-            top: Box::new(Textures::GrassBlockTop),
-            side: Box::new(Textures::GrassBlockSide),
-            bottom: Box::new(Textures::DirtBlock),
+        collision_size: (1.0, 1.0, 1.0),
+        model: ModelType::Block(BlockModelType {
+            block_size: (1.0, 1.0, 1.0), 
+            texture: BlockTextureType::Log(LogTextureMap {
+                top: Box::new(Textures::GrassBlockTop),
+                side: Box::new(Textures::GrassBlockSide),
+                bottom: Box::new(Textures::DirtBlock),
+            }),
         }),
         rotate: false,
         start: None,
         tick: None,
         update: None,
         random_tick: None,
-        render: None,
-        solid: Some(true),
+        block_type: BlockType::Solid,
     });
 
     window.data.world.reg_block(BlockData {
         name: "dirt block".to_string(),
-        size: (1.0, 1.0, 1.0),
-        texture: TextureType::All(Box::new(Textures::DirtBlock)),
+        collision_size: (1.0, 1.0, 1.0),
+        model: ModelType::Block(BlockModelType {
+            block_size:(1.0, 1.0, 1.0),
+            texture: BlockTextureType::All(Box::new(Textures::DirtBlock)),
+        }),
         rotate: false,
         tick: None,
         start: None,
         update: None,
         random_tick: None,
-        render: None,
-        solid: Some(true),
+        block_type: BlockType::Solid,
     });
     //starts window
    
