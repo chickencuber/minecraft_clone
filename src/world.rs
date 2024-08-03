@@ -17,7 +17,7 @@ impl World {
                 texture: BlockTextureType::None,
             }),
             rotate: false,
-            collision_size: (1.0, 1.0, 1.0),
+            collision_type: CollisionType::None,
             name: "air".to_string(),
             random_tick: None,
             tick: None,
@@ -170,7 +170,8 @@ pub enum BlockType {
 
 pub enum ModelType {
     Block(BlockModelType),
-    Custom(Vec<Faces>)
+    Custom(Vec<Faces>),
+    Plant(Box<dyn TextureName>),
 }
 
 pub struct Faces {
@@ -183,10 +184,15 @@ pub struct BlockModelType {
     pub texture: BlockTextureType,
 }
 
+pub enum CollisionType {
+    None,
+    Block(f32, f32, f32),
+}
+
 pub struct BlockData {
     pub model: ModelType,
     pub rotate: bool,
-    pub collision_size: (f32, f32, f32),
+    pub collision_type: CollisionType,
     pub name: String,
     pub tick: Option<fn(Vec3, &mut Block, &mut World) -> ()>,
     pub update: Option<fn(Vec3, &mut Block, &mut World) -> ()>,
