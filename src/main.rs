@@ -97,7 +97,7 @@ fn main() {
 
     window.data.world.reg_block(BlockData {
         name: "grass block".to_string(),
-        collision_type: CollisionType::Block(1.0, 1.0, 1.0),
+        collision_data: CollisionData::Normal(CollisionType::Block(1.0, 1.0, 1.0)),
         model: ModelType::Block(BlockModelType {
             block_size: (1.0, 1.0, 1.0), 
             texture: BlockTextureType::Log(LogTextureMap {
@@ -116,7 +116,7 @@ fn main() {
 
     window.data.world.reg_block(BlockData {
         name: "dirt block".to_string(),
-        collision_type: CollisionType::Block(1.0, 1.0, 1.0),
+        collision_data: CollisionData::Normal(CollisionType::Block(1.0, 1.0, 1.0)),
         model: ModelType::Block(BlockModelType {
             block_size:(1.0, 1.0, 1.0),
             texture: BlockTextureType::All(Box::new(Textures::DirtBlock)),
@@ -130,7 +130,7 @@ fn main() {
     });
     //starts window
    
-    window.data.world.place_block(Vec3::new(0.0, 0.0, 0.0), Block::new(1, NbtBlock::new()));
+    window.data.world.place_block(Vec3::new(0.0, 0.0, 0.0), Block::new(1, NbtBlock::new(), &window.data.world));
 
     window.start();
 }
