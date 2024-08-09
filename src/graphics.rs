@@ -131,11 +131,11 @@ pub mod draw {
         }
         pub fn create_square(vec: &mut Vec<f32>, tl: Vec3, tr: Vec3, br: Vec3, bl: Vec3, texture_id: &TextureLocation) {
            Self::create(vec, tl, tr, br, texture_id, TextureMapping::TopLeft, TextureMapping::TopRight, TextureMapping::BottomRight);
-           Self::create(vec, tl, bl, br, texture_id, TextureMapping::TopLeft, TextureMapping::BottomLeft, TextureMapping::BottomRight);
+           Self::create(vec, bl, tl, br, texture_id, TextureMapping::BottomLeft, TextureMapping::TopLeft, TextureMapping::BottomRight);
         }
         pub fn square(vec: &mut Vec<Triangle>, tl: Vec3, tr: Vec3, br: Vec3, bl: Vec3, texture_id: &TextureLocation) {
             vec.push(Self::new(tl, tr, br, texture_id, TextureMapping::TopLeft, TextureMapping::TopRight, TextureMapping::BottomRight));
-            vec.push(Self::new(tl, bl, br, texture_id, TextureMapping::TopLeft, TextureMapping::BottomLeft, TextureMapping::BottomRight));
+            vec.push(Self::new(bl, tl, br, texture_id, TextureMapping::BottomLeft, TextureMapping::TopLeft, TextureMapping::BottomRight));
         }
         pub fn to_points(&self, vec: &mut Vec<f32>) {
             vec.push(self.p1.x);

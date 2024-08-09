@@ -72,6 +72,12 @@ fn main() {
         world: World::new(),
     });
 
+    unsafe {
+        gl::Enable(gl::CULL_FACE);
+        gl::CullFace(gl::BACK);
+        gl::FrontFace(gl::CCW); // Counter-clockwise
+    }
+
     // sets up window
 
     window.set_min_size(640, 320);
@@ -97,7 +103,7 @@ fn main() {
 
     window.data.world.reg_block(BlockData {
         name: "grass block".to_string(),
-        collision_data: CollisionData::Normal(CollisionType::Block(1.0, 1.0, 1.0)),
+        collision_data: CollisionData::Normal(1.0, 1.0, 1.0),
         model: ModelType::Block(BlockModelType {
             block_size: (1.0, 1.0, 1.0), 
             texture: BlockTextureType::Log(LogTextureMap {
@@ -116,7 +122,7 @@ fn main() {
 
     window.data.world.reg_block(BlockData {
         name: "dirt block".to_string(),
-        collision_data: CollisionData::Normal(CollisionType::Block(1.0, 1.0, 1.0)),
+        collision_data: CollisionData::Normal(1.0, 1.0, 1.0),
         model: ModelType::Block(BlockModelType {
             block_size:(1.0, 1.0, 1.0),
             texture: BlockTextureType::All(Box::new(Textures::DirtBlock)),
@@ -210,6 +216,7 @@ fn update(window: &mut Window<GameData>) {
 
 fn render(window: &mut Window<GameData>) {
     let mut verts: Vec<f32> = Vec::new();
+    window.data.world.render(&mut verts, Vec3::new(0.0, 0.0, 0.0), window);
     window.render_triangles(&verts);
 }
 
